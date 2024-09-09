@@ -15,7 +15,7 @@ wandb_project: 'LLMHD'                                    # DenoiseLLM, LLMADARe
 epochs: 200
 stopping_step: 20                                        # All: 20
 learner: Adam
-learning_rate: 0.005                                      # 0.001
+learning_rate: 0.001                                      # 0.001
 train_batch_size: 1024                                   # Sequence: 256 || CF: 1024
 save_step: 5
 clip_grad_norm: ~
@@ -24,5 +24,5 @@ clip_grad_norm: ~
 topk: [5, 10, 20, 50]
 metrics: ['Recall', 'MRR', 'NDCG', 'Hit']
 valid_metric: 'Recall@50'                                 # Recall@50, NGCF@20
-eval_batch_size: 1000000                                    # 1024, 256
+eval_batch_size: 1000000000                               # 1024, 256
 eval_step: 1
