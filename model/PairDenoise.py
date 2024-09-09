@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from recbole.utils import InputType
 from recbole_gnn.recbole_gnn.model.general_recommender import SGL, NCL
 from recbole.model.general_recommender import NGCF, LightGCN
-from base import BasePairDenoiseCF
+from model.base import BasePairDenoiseCF
 
 
 class TCEPairDenoise(BasePairDenoiseCF):
@@ -15,7 +15,7 @@ class TCEPairDenoise(BasePairDenoiseCF):
         super(TCEPairDenoise, self).__init__(config, dataset, backbone)
         self.bpr_gamma = 1e-10
         self.count = 0
-        self.exponent = 1
+        self.exponent = config["TCE_exponent"]
         self.num_update = config["TCE_num_update"]              # config["TCE_num_update"]
         self.max_drop_rate = config["TCE_max_drop_rate"]        # config["TCE_max_drop_rate"]
 
@@ -81,7 +81,7 @@ class TCEPairDenoise(BasePairDenoiseCF):
             loss = rec_loss + self.reg_weight * reg_loss
         else:
             raise NotImplementedError(
-                f"{self.__class__.__name__} func 'calculate_loss' for backbone '{self.backbone.__class__.__name__}' is not implemented!"
+                f"{self.__class__.__name__}'s 'calculate_loss' function for backbone '{self.backbone.__class__.__name__}' is not implemented!"
             )
 
         return loss

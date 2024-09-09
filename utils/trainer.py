@@ -17,8 +17,8 @@ class DenoiseTrainer(Trainer):
     def __init__(self, config, model):
         super(DenoiseTrainer, self).__init__(config, model)
         # ********************** For NCL ***************
-        self.is_NCL = isinstance(self.model.encoder, NCL)
-        if isinstance(self.model.encoder, NCL):
+        self.is_NCL = isinstance(self.model.backbone, NCL)
+        if isinstance(self.model.backbone, NCL):
             self.num_m_step = config["m_step"]
             assert self.num_m_step is not None
 

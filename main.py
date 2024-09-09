@@ -20,7 +20,6 @@ def run_denoise_cf(args):
     if args.denoise not in ["BPR", "BCE", "T-CE", "R-CE", "BOD", "DCF"]:
         raise ValueError("'denoise' must be one of [BPR, BCE, T-CE, R-CE, BOD, DCF].")
 
-    denoise = args.denoise                  # denoise method
     config = load_config(args)              # load config
 
     # fix all seed
@@ -45,11 +44,12 @@ def run_denoise_cf(args):
     # Load Model
     init_seed(config["seed"] + config["local_rank"], config["reproducibility"])
     if args.backbone not in ["SGL", "NCL"]:
-        model = get_model(args.backbone)(config, train_data._dataset).to(config["device"])
+        backbone = get_model(args.backbone)(config, train_data._dataset).to(config["device"])
     elif args.backbone in ["SGL", "NCL"]:
-        model = gnnutils.get_model(args.backbone)(config, train_data.dataset).to(config["device"])
+        backbone = gnnutils.get_model(args.backbone)(config, train_data.dataset).to(config["device"])
     else:
         raise ValueError("Backbone model must be ['NGCF', 'LightGCN' 'SGL', 'NCL']")
+    model = load_model(args, config, train_data.dataset, backbone)
 
     # Log FLOPs
     transform = construct_transform(config)
@@ -76,8 +76,8 @@ def run_denoise_cf(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', type=str, default='LightGCN', help='loading backbone models [NGCF / LightGCN / SGL / NCL]')
-    parser.add_argument('--dataset', type=str, default='book', help='dataset to be used [steam / book / yelp]')
-    parser.add_argument('--denoise', type=str, default='BPR', help='the training mode of backbone')
+    parser.add_argument('--dataset', type=str, default='yelp', help='dataset to be used [yelp]')
+    parser.add_argument('--denoise', type=str, default='BPR', help='the denoise training mode of backbone [BPR, TCE, RCE]')
     args, _ = parser.parse_known_args()
 
     run_denoise_cf(args)

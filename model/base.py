@@ -61,6 +61,9 @@ class BasePairDenoiseCF(GeneralRecommender):
             ret = self.backbone.forward()
         return ret
 
+    def calculate_loss(self, interaction):
+        return self.backbone.calculate_loss(interaction)
+
     def predict(self, interaction):
         user = interaction[self.USER_ID]
         item = interaction[self.ITEM_ID]
@@ -91,6 +94,9 @@ class BasePointDenoiseCF(GeneralRecommender):
         self.backbone = backbone
         if isinstance(self.backbone, NCL):
             self.e_step = self.backbone.e_step()
+
+    def calculate_loss(self, interaction):
+        return self.backbone.calculate_loss(interaction)
 
     def forward(self, sgl_graph=None):
         if isinstance(self.backbone, SGL):

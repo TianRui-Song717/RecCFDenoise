@@ -23,6 +23,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="songtianrui@10.120.16.35:22 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/songtianrui/projects/RecCFDenoise" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="songtianrui@10.120.16.36:22 password">
         <serverdata>
           <mappings>
