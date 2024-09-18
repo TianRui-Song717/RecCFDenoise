@@ -60,7 +60,7 @@ def run_denoise_cf(args):
     trainer = load_trainer(args)(config, model)
 
     # model training
-    best_valid_score, best_valid_result = trainer.fit(
+z    best_valid_score, best_valid_result = trainer.fit(
         train_data, valid_data, saved=True, show_progress=config["show_progress"]
     )
 
