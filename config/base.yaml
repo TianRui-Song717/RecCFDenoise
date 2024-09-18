@@ -9,7 +9,7 @@ data_path: dataset/
 
 # Wandb Projects
 log_wandb: False
-wandb_project: 'LLMHD'                                    # DenoiseLLM, LLMADARec
+wandb_project: 'PairDenoiseSampler'                                    # DenoiseLLM, LLMADARec
 
 # Training Setting
 epochs: 200

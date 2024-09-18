@@ -66,6 +66,10 @@ def load_model(args, config, dataset, backbone):
         model = BasePointDenoiseCF(config, dataset, backbone)
     elif args.denoise == "TCE":
         model = TCEPairDenoise(config, dataset, backbone)
+    elif args.denoise == "RCE":
+        model = RCEPairDenoise(config, dataset, backbone)
+    else:
+        raise ValueError("Denoise Training Approach Not Implemented!")
     return model
 
 

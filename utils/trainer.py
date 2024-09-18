@@ -137,12 +137,6 @@ class BODTrainer(DenoiseTrainer):
 
         self.model_parameters = list(self.model.parameters())
 
-        # ********************** For NCL ***************
-        self.is_NCL = isinstance(self.model.encoder, NCL)
-        if isinstance(self.model.encoder, NCL):
-            self.num_m_step = config["m_step"]
-            assert self.num_m_step is not None
-
     @staticmethod
     def uniformity_loss(x, t=2):
         x = F.normalize(x, dim=-1)
@@ -344,3 +338,9 @@ class BODTrainer(DenoiseTrainer):
         self.model_generator.eval()
 
         return total_loss
+
+
+class DeCATrainer(DenoiseTrainer):
+    def __init__(self, config, model):
+        super(DeCATrainer, self).__init__(config, model)
+        pass

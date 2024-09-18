@@ -50,7 +50,7 @@ def run_denoise_cf(args):
     else:
         raise ValueError("Backbone model must be ['NGCF', 'LightGCN' 'SGL', 'NCL']")
     model = load_model(args, config, train_data.dataset, backbone)
-
+    logger.info(model)
     # Log FLOPs
     transform = construct_transform(config)
     flops = get_flops(model, dataset, config["device"], logger, transform)
@@ -77,7 +77,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', type=str, default='LightGCN', help='loading backbone models [NGCF / LightGCN / SGL / NCL]')
     parser.add_argument('--dataset', type=str, default='yelp', help='dataset to be used [yelp]')
-    parser.add_argument('--denoise', type=str, default='TCE', help='the denoise training mode of backbone [BPR, TCE, RCE]')
+    parser.add_argument('--denoise', type=str, default='RCE', help='the denoise training mode of backbone [BPR, TCE, RCE]')
     args, _ = parser.parse_known_args()
 
     run_denoise_cf(args)
+
+
+    # MODEL | LightGCN  | NGCF  | SGL   | NCL
+    # BPR   |    OK     |       |       |
+    # TCE-P |    OK     |       |       |
+    # RCE-P |           |       |       |
+    # BOD   |           |       |       |
+    # DDRM  |           |       |       |

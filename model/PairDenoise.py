@@ -8,7 +8,61 @@ from recbole.model.general_recommender import NGCF, LightGCN
 from model.base import BasePairDenoiseCF
 
 
-class TCEPairDenoise(BasePairDenoiseCF):
+class LossBasePairDenoise(BasePairDenoiseCF):
+    input_type = InputType.PAIRWISE
+
+    def __init__(self, config, dataset, backbone):
+        super(LossBasePairDenoise, self).__init__(config, dataset, backbone)
+
+    def _denoise_loss(self, pos_scores, neg_scores):
+        raise NotImplementedError("The denoise loss function is not implemented!")
+
+    def calculate_loss(self, interaction):
+        if self.backbone.restore_user_e is not None or self.backbone.restore_item_e is not None:
+            self.backbone.restore_user_e, self.backbone.restore_item_e = None, None
+        user = interaction[self.USER_ID]
+        pos_item = interaction[self.ITEM_ID]
+        neg_item = interaction[self.NEG_ITEM_ID]
+
+        # Model Forward
+        user_all_embeddings, item_all_embeddings = self.backbone.forward()
+        u_embeddings = user_all_embeddings[user]
+        pos_embeddings = item_all_embeddings[pos_item]
+        neg_embeddings = item_all_embeddings[neg_item]
+
+
+        if isinstance(self.backbone, LightGCN):
+            u_ego_embeddings = self.backbone.user_embedding(user)
+            pos_ego_embeddings = self.backbone.item_embedding(pos_item)
+            neg_ego_embeddings = self.backbone.item_embedding(neg_item)
+            reg_loss = self.backbone.reg_loss(
+                u_ego_embeddings,
+                pos_ego_embeddings,
+                neg_ego_embeddings,
+                require_pow=self.backbone.require_pow,
+            )
+
+            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
+            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
+            rec_loss = self._denoise_loss(pos_scores, neg_scores)
+            loss = rec_loss + self.backbone.reg_weight * reg_loss
+        elif isinstance(self.backbone, NGCF):
+            reg_loss = self.reg_loss(
+                u_embeddings, pos_embeddings, neg_embeddings
+            )
+
+            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
+            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
+            rec_loss = self._denoise_loss(pos_scores, neg_scores)
+            loss = rec_loss + self.reg_weight * reg_loss
+        else:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}'s 'calculate_loss' function for backbone '{self.backbone.__class__.__name__}' is not implemented!"
+            )
+
+        return loss
+
+class TCEPairDenoise(LossBasePairDenoise):
     input_type = InputType.PAIRWISE
 
     def __init__(self, config, dataset, backbone):
@@ -30,7 +84,14 @@ class TCEPairDenoise(BasePairDenoiseCF):
         self.count += 1  # update drop rate per batch
         return ret
 
-    def tce_denoise(self, pos_scores, neg_scores):
+    def _denoise_loss(self, pos_scores, neg_scores):
+        """
+        Paper: Wenjie Wang, Fuli Feng, Xiangnan He, Liqiang Nie, Tat-Seng Chua. Denoising Implicit Feedback for Recommendation.WSDM2021
+        implemented according to https://github.com/WenjieWWJ/DenoisingRec/blob/main/T_CE/loss.py
+        :param pos_scores: positive item prediction score
+        :param neg_scores: negative item prediction score
+        :return: loss value
+        """
         bsz = pos_scores.size(0)
         remain_rate = 1 - self._get_drop_rate()
         remain_num = int(remain_rate * bsz)
@@ -44,53 +105,8 @@ class TCEPairDenoise(BasePairDenoiseCF):
             loss = -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores[idxs_update] - neg_scores[idxs_update])).sum()
         return loss
 
-    def calculate_loss(self, interaction):
-        if self.backbone.restore_user_e is not None or self.backbone.restore_item_e is not None:
-            self.backbone.restore_user_e, self.backbone.restore_item_e = None, None
-        user = interaction[self.USER_ID]
-        pos_item = interaction[self.ITEM_ID]
-        neg_item = interaction[self.NEG_ITEM_ID]
 
-        # Model Forward
-        user_all_embeddings, item_all_embeddings = self.backbone.forward()
-        u_embeddings = user_all_embeddings[user]
-        pos_embeddings = item_all_embeddings[pos_item]
-        neg_embeddings = item_all_embeddings[neg_item]
-
-
-        if isinstance(self.backbone, LightGCN):
-            u_ego_embeddings = self.backbone.user_embedding(user)
-            pos_ego_embeddings = self.backbone.item_embedding(pos_item)
-            neg_ego_embeddings = self.backbone.item_embedding(neg_item)
-            reg_loss = self.backbone.reg_loss(
-                u_ego_embeddings,
-                pos_ego_embeddings,
-                neg_ego_embeddings,
-                require_pow=self.backbone.require_pow,
-            )
-
-            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
-            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self.tce_denoise(pos_scores, neg_scores)
-            loss = rec_loss + self.backbone.reg_weight * reg_loss
-        elif isinstance(self.backbone, NGCF):
-            reg_loss = self.reg_loss(
-                u_embeddings, pos_embeddings, neg_embeddings
-            )
-
-            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
-            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self.tce_denoise(pos_scores, neg_scores)
-            loss = rec_loss + self.reg_weight * reg_loss
-        else:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}'s 'calculate_loss' function for backbone '{self.backbone.__class__.__name__}' is not implemented!"
-            )
-
-        return loss
-
-
-class RCEPairDenoise(BasePairDenoiseCF):
+class RCEPairDenoise(LossBasePairDenoise):
     input_type = InputType.PAIRWISE
 
     def __init__(self, config, dataset, backbone):
@@ -98,9 +114,8 @@ class RCEPairDenoise(BasePairDenoiseCF):
         self.bpr_gamma = 1e-10
         self.alpha = config["RCE_alpha"]
 
-    def rce_denoise(self, pos_scores, neg_scores):
+    def _denoise_loss(self, pos_scores, neg_scores):
         with torch.no_grad():
-            batch_loss = -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores))  # [bsz, ]
             weight = torch.pow(pos_scores, self.alpha) + torch.pow((1 - neg_scores), self.alpha)
         loss = weight * -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores))
         if not isinstance(self.backbone, SGL):
@@ -109,47 +124,7 @@ class RCEPairDenoise(BasePairDenoiseCF):
             loss = torch.sum(loss)
         return loss
 
-    def calculate_loss(self, interaction):
-        if self.backbone.restore_user_e is not None or self.backbone.restore_item_e is not None:
-            self.backbone.restore_user_e, self.backbone.restore_item_e = None, None
-        user = interaction[self.USER_ID]
-        pos_item = interaction[self.ITEM_ID]
-        neg_item = interaction[self.NEG_ITEM_ID]
 
-        # Model Forward
-        user_all_embeddings, item_all_embeddings = self.backbone.forward()
-        u_embeddings = user_all_embeddings[user]
-        pos_embeddings = item_all_embeddings[pos_item]
-        neg_embeddings = item_all_embeddings[neg_item]
-
-        if isinstance(self.backbone, LightGCN):
-            u_ego_embeddings = self.backbone.user_embedding(user)
-            pos_ego_embeddings = self.backbone.item_embedding(pos_item)
-            neg_ego_embeddings = self.backbone.item_embedding(neg_item)
-            reg_loss = self.backbone.reg_loss(
-                u_ego_embeddings,
-                pos_ego_embeddings,
-                neg_ego_embeddings,
-                require_pow=self.backbone.require_pow,
-            )
-
-            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
-            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self.rce_denoise(pos_scores, neg_scores)
-            loss = rec_loss + self.backbone.reg_weight * reg_loss
-        elif isinstance(self.backbone, NGCF):
-            reg_loss = self.reg_loss(
-                u_embeddings, pos_embeddings, neg_embeddings
-            )
-
-            pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
-            neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self.rce_denoise(pos_scores, neg_scores)
-            loss = rec_loss + self.reg_weight * reg_loss
-        else:
-            raise NotImplementedError(
-                f"{self.__class__.__name__}'s 'calculate_loss' function for backbone '{self.backbone.__class__.__name__}' is not implemented!"
-            )
-        return loss
-
+class BODPairDenoise(BasePairDenoiseCF):
+    pass
 
