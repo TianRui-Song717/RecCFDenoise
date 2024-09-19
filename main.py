@@ -77,15 +77,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', type=str, default='LightGCN', help='loading backbone models [NGCF / LightGCN / SGL / NCL]')
     parser.add_argument('--dataset', type=str, default='yelp', help='dataset to be used [yelp]')
-    parser.add_argument('--denoise', type=str, default='BPR', help='the denoise training mode of backbone [BPR, TCE, RCE]')
+    parser.add_argument('--denoise', type=str, default='RCE', help='the denoise training mode of backbone [BPR, TCE, RCE, BOD]')
     args, _ = parser.parse_known_args()
 
     run_denoise_cf(args)
 
 
-    # MODEL | LightGCN  | NGCF  | SGL   | NCL
+    # MODEL | LightGCN  | NGCF  |  SGL  | NCL
     # BPR   |    OK     |       |       |
     # TCE-P |    OK     |       |       |
     # RCE-P |    OK     |       |       |
-    # BOD   |    TBD    |       |       |
+    # BOD   |    OK     |       |       |
     # DDRM  |           |       |       |

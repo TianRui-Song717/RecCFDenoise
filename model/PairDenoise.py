@@ -114,8 +114,9 @@ class RCEPairDenoise(LossBasePairDenoise):
 
     def _denoise_loss(self, pos_scores, neg_scores):
         with torch.no_grad():
-            loss_ = torch.sigmoid(-torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores)))
-            weight = torch.pow(loss_, self.alpha)
+            # loss_ = torch.sigmoid(-torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores)))
+            # weight = torch.pow(loss_, self.alpha)
+            weight = torch.pow(torch.sigmoid(-(pos_scores - neg_scores)), self.alpha)
         loss = weight * -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores))
         if not isinstance(self.backbone, SGL):
             loss = torch.mean(loss)

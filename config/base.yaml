@@ -1,5 +1,5 @@
 # Environment settings
-gpu_id: '0,1'
+gpu_id: '0'
 seed: 2020
 reproducibility: True
 checkpoint_dir: checkpoints
@@ -8,7 +8,7 @@ shuffle: True
 data_path: dataset/
 
 # Wandb Projects
-log_wandb: True
+log_wandb: False
 wandb_project: 'PairDenoiseSampler'                                    # DenoiseLLM, LLMADARec
 
 # Training Setting
