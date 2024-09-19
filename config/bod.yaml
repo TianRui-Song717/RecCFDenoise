@@ -1,0 +1,9 @@
+BOD_generator_lr: 0.001
+BOD_generator_reg: 1e-05
+BOD_generator_emb_size: 64
+
+BOD_inner_loop: 1
+BOD_outer_loop: 1
+BOD_weight_bpr: 1
+BOD_weight_alignment: 1
+BOD_weight_uniformity: 0.5

@@ -13,11 +13,12 @@ class LossBasePairDenoise(BasePairDenoiseCF):
 
     def __init__(self, config, dataset, backbone):
         super(LossBasePairDenoise, self).__init__(config, dataset, backbone)
+        self.bpr_gamma = 1e-10
 
-    def _denoise_loss(self, pos_scores, neg_scores):
+    def _denoise_loss(self, pos_scores, neg_scores, **kwargs):
         raise NotImplementedError("The denoise loss function is not implemented!")
 
-    def calculate_loss(self, interaction):
+    def calculate_loss(self, interaction, **kwargs):
         if self.backbone.restore_user_e is not None or self.backbone.restore_item_e is not None:
             self.backbone.restore_user_e, self.backbone.restore_item_e = None, None
         user = interaction[self.USER_ID]
@@ -29,7 +30,6 @@ class LossBasePairDenoise(BasePairDenoiseCF):
         u_embeddings = user_all_embeddings[user]
         pos_embeddings = item_all_embeddings[pos_item]
         neg_embeddings = item_all_embeddings[neg_item]
-
 
         if isinstance(self.backbone, LightGCN):
             u_ego_embeddings = self.backbone.user_embedding(user)
@@ -44,7 +44,7 @@ class LossBasePairDenoise(BasePairDenoiseCF):
 
             pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
             neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self._denoise_loss(pos_scores, neg_scores)
+            rec_loss = self._denoise_loss(pos_scores, neg_scores, **kwargs)
             loss = rec_loss + self.backbone.reg_weight * reg_loss
         elif isinstance(self.backbone, NGCF):
             reg_loss = self.reg_loss(
@@ -53,7 +53,7 @@ class LossBasePairDenoise(BasePairDenoiseCF):
 
             pos_scores = torch.mul(u_embeddings, pos_embeddings).sum(dim=1)
             neg_scores = torch.mul(u_embeddings, neg_embeddings).sum(dim=1)
-            rec_loss = self._denoise_loss(pos_scores, neg_scores)
+            rec_loss = self._denoise_loss(pos_scores, neg_scores, **kwargs)
             loss = rec_loss + self.reg_weight * reg_loss
         else:
             raise NotImplementedError(
@@ -67,7 +67,6 @@ class TCEPairDenoise(LossBasePairDenoise):
 
     def __init__(self, config, dataset, backbone):
         super(TCEPairDenoise, self).__init__(config, dataset, backbone)
-        self.bpr_gamma = 1e-10
         self.count = 0
         self.exponent = config["TCE_exponent"]
         self.num_update = config["TCE_num_update"]              # config["TCE_num_update"]
@@ -111,7 +110,6 @@ class RCEPairDenoise(LossBasePairDenoise):
 
     def __init__(self, config, dataset, backbone):
         super(RCEPairDenoise, self).__init__(config, dataset, backbone)
-        self.bpr_gamma = 1e-10
         self.alpha = config["RCE_alpha"]
 
     def _denoise_loss(self, pos_scores, neg_scores):
@@ -126,6 +124,18 @@ class RCEPairDenoise(LossBasePairDenoise):
         return loss
 
 
-class BODPairDenoise(BasePairDenoiseCF):
-    pass
+class BODPairDenoise(LossBasePairDenoise):
+    input_type = InputType.PAIRWISE
 
+    def __init__(self, config, dataset, backbone):
+        super(BODPairDenoise, self).__init__(config, dataset, backbone)
+
+    def _denoise_loss(self, pos_scores, neg_scores, bod_weight_pos=None, bod_weight_neg=None):
+        assert bod_weight_neg is not None and bod_weight_pos is not None, "BOD Weight is Empty!"
+        pos_scores = bod_weight_pos.detach() * pos_scores
+        neg_scores = bod_weight_neg.detach() * neg_scores
+        if not isinstance(self.backbone, SGL):
+            loss = -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores)).mean()
+        else:
+            loss = -torch.log(self.bpr_gamma + torch.sigmoid(pos_scores - neg_scores)).sum()
+        return loss

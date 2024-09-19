@@ -68,6 +68,8 @@ def load_model(args, config, dataset, backbone):
         model = TCEPairDenoise(config, dataset, backbone)
     elif args.denoise == "RCE":
         model = RCEPairDenoise(config, dataset, backbone)
+    elif args.denoise == "BOD":
+        model = BODPairDenoise(config, dataset, backbone)
     else:
         raise ValueError("Denoise Training Approach Not Implemented!")
     return model

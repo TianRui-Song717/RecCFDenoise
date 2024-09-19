@@ -123,15 +123,15 @@ class DenoiseTrainer(Trainer):
 class BODTrainer(DenoiseTrainer):
     def __init__(self, config, model):
         super(BODTrainer, self).__init__(config, model)
-        self.inner_loop = 1                 # config["BOD_inner_loop"]
-        self.outer_loop = 1                 # config["BOD_outer_loop"]
-        self.weight_bpr = 1                 # config["BOD_weight_bpr"]
-        self.weight_alignment = 1           # config["BOD_weight_alignment"]
-        self.weight_uniformity = 0.5        # config["BOD_weight_uniformity"]
+        self.inner_loop = config["BOD_inner_loop"]
+        self.outer_loop = config["BOD_outer_loop"]
+        self.weight_bpr = config["BOD_weight_bpr"]
+        self.weight_alignment = config["BOD_weight_alignment"]
+        self.weight_uniformity = config["BOD_weight_uniformity"]
 
-        self.generator_lr = 0.001           # config["BOD_generator_lr"]
-        self.generator_reg = 1e-05          # config["BOD_generator_reg"]
-        self.generator_emb_size = 64        # config["BOD_generator_emb_size"]
+        self.generator_lr = config["BOD_generator_lr"]
+        self.generator_reg = config["BOD_generator_reg"]
+        self.generator_emb_size = config["BOD_generator_emb_size"]
         self.model_generator = GraphGenerator_VAE(self.generator_emb_size).to(config["device"])
         self.generator_optimizer = torch.optim.Adam(self.model_generator.parameters(), lr=self.generator_lr)
 
@@ -193,7 +193,7 @@ class BODTrainer(DenoiseTrainer):
         # TODO: OURS
         loss_func = loss_func or self.model.calculate_loss
 
-        total_loss = 0.0 if not isinstance(self.model.encoder, NCL) else None
+        total_loss = 0.0 if not isinstance(self.model.backbone, NCL) else None
         iter_data = (
             tqdm(
                 train_data,
@@ -221,24 +221,16 @@ class BODTrainer(DenoiseTrainer):
                 u_emb, i_emb = self.model.forward()
                 pos_user_emb_syn, pos_item_emb_syn = u_emb[pos_u_idx], i_emb[pos_i_idx]
                 neg_user_emb_syn, neg_item_emb_syn = u_emb[neg_u_idx], i_emb[neg_i_idx]
+
                 A_weight_user_item_full = self.model_generator(pos_user_emb_syn, pos_item_emb_syn)
                 A_weight_user_item_full_neg = self.model_generator(neg_user_emb_syn, neg_item_emb_syn)
                 A_weight_inner_full_detach = A_weight_user_item_full.detach()
                 A_weight_inner_full_neg_detach = A_weight_user_item_full_neg.detach()
 
-                # # TODO ORIGIN: convert to model.calculate_loss
-                # # weighted BPR
-                # pos_score = A_weight_inner_full_detach * torch.mul(pos_user_emb_syn, pos_item_emb_syn).sum(dim=1)
-                # neg_score = A_weight_inner_full_neg_detach * torch.mul(pos_user_emb_syn, neg_item_emb_syn).sum(dim=1)
-                # loss = -torch.log(1e-10 + torch.sigmoid(pos_score - neg_score))
-                # bpr_inner = torch.mean(loss) # Rec Loss
-                # # Other Loss
-                # cl_loss = 0.05 * 0.0 # TODO WHY: 0.005 calculate Other Losses (e.g. SGL & NCL) ???
-
-                # TODO: OURS
+                # Rec Loss + (Optional CL Loss -- SGL, NCL, ...)
                 losses = loss_func(
                     interaction, bod_weight_pos=A_weight_inner_full_detach, bod_weight_neg=A_weight_inner_full_neg_detach
-                )
+                ) # TODO WHY: 0.005 calculate Other Losses (e.g. SGL & NCL) ???
 
                 # alignment_loss_weight
                 x, y = F.normalize(pos_user_emb_syn, dim=-1), F.normalize(pos_item_emb_syn, dim=-1)
@@ -246,9 +238,10 @@ class BODTrainer(DenoiseTrainer):
                 alignment_inner = (A_weight_inner_full_detach * align_loss).mean()
 
                 # uniformity_inner
-                uniformity_inner = (self.uniformity_loss(pos_user_emb_syn) + self.uniformity_loss(neg_user_emb_syn)
-                                    + self.uniformity_loss(pos_item_emb_syn) + self.uniformity_loss(
-                            neg_item_emb_syn)) / 4
+                uniformity_inner = (
+                    self.uniformity_loss(pos_user_emb_syn) + self.uniformity_loss(neg_user_emb_syn)
+                    + self.uniformity_loss(pos_item_emb_syn) + self.uniformity_loss(neg_item_emb_syn)
+                ) / 4
 
                 # TODO ORIGIN
                 # batch_loss_inner = self.weight_bpr * bpr_inner + self.weight_alignment * alignment_inner + self.weight_uniformity * uniformity_inner + cl_loss
@@ -310,7 +303,7 @@ class BODTrainer(DenoiseTrainer):
             neg_i_idx_ol = j_idx_ol
 
             u_emb, i_emb = self.model.forward()
-            user_emb_ol, item_emb_ol  = u_emb[u_idx_ol], i_emb[i_idx_ol]
+            user_emb_ol, item_emb_ol = u_emb[u_idx_ol], i_emb[i_idx_ol]
             pos_user_emb_ol, pos_item_emb_ol, neg_item_emb_ol = u_emb[pos_u_idx_ol], i_emb[pos_i_idx_ol], i_emb[neg_i_idx_ol]
 
             A_weight_user_item_pos = self.model_generator(pos_user_emb_ol, pos_user_emb_ol)

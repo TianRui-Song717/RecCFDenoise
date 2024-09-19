@@ -60,7 +60,7 @@ def run_denoise_cf(args):
     trainer = load_trainer(args)(config, model)
 
     # model training
-z    best_valid_score, best_valid_result = trainer.fit(
+    best_valid_score, best_valid_result = trainer.fit(
         train_data, valid_data, saved=True, show_progress=config["show_progress"]
     )
 
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--backbone', type=str, default='LightGCN', help='loading backbone models [NGCF / LightGCN / SGL / NCL]')
     parser.add_argument('--dataset', type=str, default='yelp', help='dataset to be used [yelp]')
-    parser.add_argument('--denoise', type=str, default='RCE', help='the denoise training mode of backbone [BPR, TCE, RCE]')
+    parser.add_argument('--denoise', type=str, default='BPR', help='the denoise training mode of backbone [BPR, TCE, RCE]')
     args, _ = parser.parse_known_args()
 
     run_denoise_cf(args)
@@ -86,6 +86,6 @@ if __name__ == '__main__':
     # MODEL | LightGCN  | NGCF  | SGL   | NCL
     # BPR   |    OK     |       |       |
     # TCE-P |    OK     |       |       |
-    # RCE-P |           |       |       |
-    # BOD   |           |       |       |
+    # RCE-P |    OK     |       |       |
+    # BOD   |    TBD    |       |       |
     # DDRM  |           |       |       |

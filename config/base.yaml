@@ -1,5 +1,5 @@
 # Environment settings
-gpu_id: '0'
+gpu_id: '0,1'
 seed: 2020
 reproducibility: True
 checkpoint_dir: checkpoints
@@ -8,7 +8,7 @@ shuffle: True
 data_path: dataset/
 
 # Wandb Projects
-log_wandb: False
+log_wandb: True
 wandb_project: 'PairDenoiseSampler'                                    # DenoiseLLM, LLMADARec
 
 # Training Setting
@@ -16,7 +16,7 @@ epochs: 200
 stopping_step: 20                                        # All: 20
 learner: Adam
 learning_rate: 0.001                                      # 0.001
-train_batch_size: 1024                                   # Sequence: 256 || CF: 1024
+train_batch_size: 2048                                   # Sequence: 256 || CF: 1024
 save_step: 5
 clip_grad_norm: ~
 
